@@ -1,0 +1,1183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uchiha TV Launcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ink:#e6e9f0; --muted:#8d94a3; --tile:rgba(12,14,22,.72); --tile-edge:rgba(255,255,255,.10);
+    --red:#ff1f3d; --red-glow:rgba(255,25,55,.65);
+    --ui:"Inter", "Segoe UI", Roboto, Arial, sans-serif; --display:"Rajdhani", "Segoe UI", Roboto, sans-serif;
+  }
+  html, body { margin:0; height:100%; background:#000; overflow:hidden; cursor:none;
+    font-family:var(--ui); color:var(--ink); user-select:none; }
+  #stage { position:fixed; inset:0; background:#000; }
+
+  /* ---------- Sharingan loader ---------- */
+  #loader { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    opacity:0; transition:opacity .6s ease; z-index:30; background:#000; }
+  #loader.show { opacity:1; }
+  #loader.out { opacity:0; transition:opacity 1s ease; }
+  #loader svg { width:min(44vh,44vw); height:min(44vh,44vw); filter:drop-shadow(0 0 3vh rgba(255,0,40,.7)); }
+
+  /* ---------- Home ---------- */
+  #home { position:absolute; inset:0; opacity:0; transition:opacity 1.4s ease; z-index:10; }
+  #home.show { opacity:1; }
+  #wall { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  #shade { position:absolute; left:0; right:0; bottom:0; height:42%;
+    background:linear-gradient(to top, rgba(0,0,0,.8), rgba(0,0,0,.35) 60%, transparent); }
+  #topshade { position:absolute; left:0; right:0; top:0; height:16vh;
+    background:linear-gradient(to bottom, rgba(0,0,0,.55), transparent); }
+  #sky { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  #front { position:absolute; pointer-events:none; }
+  #gravel { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+  #flash { position:absolute; inset:0; pointer-events:none; opacity:0;
+    background:radial-gradient(ellipse at 50% 20%, rgba(200,215,255,.55), rgba(140,165,230,.25) 45%, rgba(60,80,140,.05) 80%); }
+  .native-bg, .native-bg body, .native-bg #stage { background:transparent !important; }
+  #bgvid { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; pointer-events:none; display:none; }
+  #sway { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  #clone { position:absolute; inset:0; pointer-events:none; z-index:3; }   /* stands on top of the tiles, like the crow */
+  #clone .cl { position:absolute; left:0; top:0; display:none; }
+  #clone .ent, #clone .flip { position:absolute; inset:0; }
+  #clone video { position:absolute; inset:0; width:100%; height:100%; }
+  #clone video.act { opacity:0; transition:opacity .15s; }
+  #clone video.act.on { opacity:1; }
+  #clone video.idle { transition:opacity .15s; }
+  #clone .acting video.idle { opacity:0; }   /* only one clip shows at a time */
+  #smoke { position:absolute; inset:0; pointer-events:none; z-index:4; }   /* above the clone, which fades in behind it */
+  #smoke .puff { position:absolute; border-radius:50%; pointer-events:none; will-change:transform, opacity;
+    background:radial-gradient(circle at 40% 35%, rgba(255,255,255,.98), rgba(236,238,242,.92) 45%, rgba(200,204,212,.75) 70%, rgba(200,204,212,0) 72%);
+    animation:puff .2s cubic-bezier(.2,.7,.3,1) both; }   /* a quick burst */
+  @keyframes puff {
+    0%   { transform:translate(0,0) scale(.25); opacity:1; }
+    55%  { opacity:.95; }
+    100% { transform:translate(var(--dx), var(--dy)) scale(1.35); opacity:0; }
+  }
+  #leaves { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+  #leaves canvas { position:absolute; left:0; top:0; will-change:transform;
+    animation:fall var(--dur) linear var(--delay) 1 both; }
+  @keyframes fall {
+    0%   { transform:translate(var(--x0), var(--y0)) rotate(0deg); opacity:0; }
+    5%   { opacity:1; }
+    25%  { transform:translate(calc(var(--x0) + var(--drift) * .2 + var(--flut)), calc(var(--y0) + (var(--y1) - var(--y0)) * .25)) rotate(calc(var(--spin) * .25)); }
+    50%  { transform:translate(calc(var(--x0) + var(--drift) * .5 - var(--flut)), calc(var(--y0) + (var(--y1) - var(--y0)) * .5)) rotate(calc(var(--spin) * .5)); }
+    75%  { transform:translate(calc(var(--x0) + var(--drift) * .8 + var(--flut)), calc(var(--y0) + (var(--y1) - var(--y0)) * .75)) rotate(calc(var(--spin) * .75)); }
+    94%  { opacity:1; }
+    100% { transform:translate(calc(var(--x0) + var(--drift)), var(--y1)) rotate(var(--spin)); opacity:0; }
+  }
+  #gravel canvas { position:absolute; left:0; top:0; will-change:transform;
+    animation:rise var(--dur) cubic-bezier(.45,.05,.75,.6) var(--delay) 1 both; }
+  @keyframes rise {
+    0%   { transform:translate(var(--x0), var(--y0)) rotate(0deg); opacity:0; }
+    6%   { opacity:1; }
+    100% { transform:translate(calc(var(--x0) + var(--sway)), var(--y1)) rotate(var(--spin)); opacity:1; }
+  }
+  #bolt { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:4; }
+  #blink { position:absolute; pointer-events:none; }
+  /* Chidori light thrown over the whole scene; only its opacity changes per crackle, so it costs no repaint */
+  #wash { position:absolute; inset:0; pointer-events:none; opacity:0; display:none; will-change:opacity;
+    background:radial-gradient(circle at var(--lx, 50%) var(--ly, 55%), rgba(130,170,255,.42), rgba(80,125,255,.22) 22%, rgba(50,90,235,.08) 50%, rgba(30,60,200,0) 85%); }
+  #crow { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:4; }
+  #rain { position:absolute; inset:0; pointer-events:none; }
+  #rain { z-index:5; overflow:hidden; }
+  /* rain = three sheets of pre-drawn streaks sliding down; only their position animates, which the GPU does on its own */
+  #rain .sheet { position:absolute; left:-10%; width:120%; top:0; will-change:transform; background-repeat:repeat;
+    animation:pour var(--t) linear infinite; }
+  @keyframes pour { from { transform:translate(0, -50%); } to { transform:translate(var(--drift), 0); } }
+
+  /* ---------- top bar ---------- */
+  #when { position:absolute; top:3.6vh; left:3.4vw; text-shadow:0 0 1.2vh #000; }
+  #time { font-family:var(--display); font-weight:600; font-size:6.4vh; line-height:1; letter-spacing:.04em; }
+  #time small { font-size:2.6vh; font-weight:700; letter-spacing:.12em; margin-left:.5vh; color:var(--red); }
+  #date { font-family:var(--display); font-weight:500; font-size:2.3vh; letter-spacing:.22em; color:var(--muted); margin-top:.6vh; }
+  #bar { position:absolute; top:4.2vh; right:3.4vw; display:flex; gap:1.4vw; }
+  .btn { position:relative; display:flex; align-items:center; justify-content:center; width:5.4vh; height:5.4vh; border-radius:50%;
+    background:var(--tile); border:1px solid var(--tile-edge); font-size:2vh; font-weight:500; color:var(--ink);
+    transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s, border-color .2s; }
+  .btn svg { width:2.6vh; height:2.6vh; }
+  /* round icon-only buttons; the name/status shows as a tooltip below when selected or hovered */
+  .btn .tip { position:absolute; top:calc(100% + 1.2vh); left:50%; transform:translate(-50%, -.6vh); opacity:0; pointer-events:none;
+    display:flex; gap:.8vh; align-items:baseline; padding:.7vh 1.4vh; border-radius:1vh; white-space:nowrap;
+    background:var(--tile); border:1px solid var(--tile-edge); font-size:1.8vh; transition:opacity .2s, transform .2s; }
+  .btn.focus .tip, .btn:hover .tip { opacity:1; transform:translate(-50%, 0); }
+  .btn:last-child .tip { left:auto; right:0; transform:translate(0, -.6vh); }
+  .btn:last-child.focus .tip, .btn:last-child:hover .tip { transform:none; }
+  .btn .state { color:var(--muted); font-size:1.6vh; letter-spacing:.08em; max-width:22vw; overflow:hidden; text-overflow:ellipsis; }
+  .btn.off svg { opacity:.45; }
+  .btn.focus { transform:scale(1.1); border-color:var(--red); box-shadow:0 0 2.6vh .2vh var(--red-glow); color:#fff; }
+
+  /* ---------- app grid: two rows under his feet, first app top-right, filling leftwards ---------- */
+  /* #row is a two-row window; #grid holds every app row and slides up/down a row at a time */
+  /* nothing is clipped (a clip would cut the focus glow square); rows outside the window fade out instead */
+  #row { position:absolute; left:4vw; right:4vw; top:var(--rows-top, 63vh); bottom:3vh; }
+  .app { transition:opacity .3s; }
+  .app.away { opacity:0; pointer-events:none; }
+  #grid { direction:rtl; transition:transform .35s cubic-bezier(.2,.8,.2,1);
+    display:grid; grid-auto-rows:var(--rowh, 16vh); grid-auto-flow:row;
+    grid-template-columns:repeat(var(--cols, 7), calc(var(--icon, 10vh) * 1.5));
+    justify-content:space-evenly; align-items:start; }
+  .app { direction:ltr; display:flex; flex-direction:column; align-items:center; }
+  .tile { width:var(--icon, 10vh); height:var(--icon, 10vh); border-radius:2.2vh; position:relative;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    background:linear-gradient(160deg, rgba(40,44,58,.75), var(--tile) 60%); border:1px solid var(--tile-edge);
+    box-shadow:0 1vh 2.6vh rgba(0,0,0,.55); color:#c9ceda; z-index:1; will-change:transform;
+    transition:transform .25s cubic-bezier(.2,.8,.2,1), border-color .25s, color .25s; }
+  .app { position:relative; }
+  .app::before { content:""; position:absolute; top:0; left:50%; width:var(--icon, 10vh); height:var(--icon, 10vh);
+    margin-left:calc(var(--icon, 10vh) / -2); border-radius:2.2vh; transform:scale(1.14); opacity:0; transition:opacity .25s;
+    box-shadow:0 0 0 .25vh var(--red), 0 0 3.4vh .6vh var(--red-glow), 0 1.4vh 3vh rgba(0,0,0,.7); will-change:opacity; }
+  .app.focus::before { opacity:1; }
+  .tile svg { width:48%; height:48%; }
+  .tile .txt { font-family:var(--display); font-weight:700; font-size:calc(var(--icon, 10vh) * .34); letter-spacing:.02em; }
+  .tile img { width:70%; height:70%; object-fit:contain; filter:grayscale(1) brightness(.85) contrast(1.1); transition:filter .25s; }
+  .lbl { margin-top:1.3vh; font-size:1.75vh; color:var(--muted); white-space:nowrap; max-width:calc(var(--icon, 10vh) * 1.5);
+    overflow:hidden; text-overflow:ellipsis; transition:color .2s; text-shadow:0 0 1vh #000; }
+  .app.focus .tile { transform:scale(1.14); border-color:var(--red); color:#fff; }
+  .app.focus .tile img { filter:none; }
+  .app.focus .lbl { color:#fff; }   /* colour only: a bolder weight would re-layout the text on every move */
+
+  /* ---------- Customize panel ---------- */
+  #cust { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.55); z-index:20; }
+  #cust.show { display:flex; }
+  #cust .panel { min-width:34vw; padding:3vh 3vw; border-radius:2.4vh; background:rgba(14,15,20,.92); border:1px solid var(--tile-edge); }
+  #cust h3 { margin:0 0 2vh; font-family:var(--display); font-size:3.2vh; letter-spacing:.18em; text-transform:uppercase; }
+  #cust .opt { display:flex; justify-content:space-between; align-items:center; gap:4vw; padding:1.4vh 1.8vh; margin:.6vh 0;
+    border-radius:1.4vh; border:1px solid transparent; font-size:2.3vh; }
+  #cust .opt.sel { border-color:var(--red); box-shadow:0 0 2vh .1vh var(--red-glow); }
+  #cust .sw { width:5.6vh; height:3vh; border-radius:1.5vh; background:#333; position:relative; transition:background .2s; }
+  #cust .sw::after { content:""; position:absolute; top:.35vh; left:.4vh; width:2.3vh; height:2.3vh; border-radius:50%; background:#aaa; transition:left .2s, background .2s; }
+  #cust .opt.on .sw { background:var(--red); }
+  #cust .opt.on .sw::after { left:2.9vh; background:#fff; }
+  #cust .done { justify-content:center; color:var(--muted); }
+  #cust .val { color:var(--red); font-weight:600; }
+  .app.moving .tile { transform:scale(1.14) translateY(-1.2vh); animation:wiggle .5s ease-in-out infinite alternate; }
+  @keyframes wiggle { from { rotate:-2.5deg; } to { rotate:2.5deg; } }
+  #arrangeHint { position:absolute; left:50%; top:3.2vh; transform:translateX(-50%); padding:1vh 2.4vh; border-radius:1.2vh;
+    background:rgba(10,12,18,.85); border:1px solid var(--red); font-size:2vh; display:none; z-index:6; }
+  #arrangeHint.show { display:block; }
+  .bright #when, .bright .lbl { text-shadow:0 0 .35vh #000, 0 0 1.4vh rgba(0,0,0,.9); }
+  .bright #date, .bright .lbl { color:#eef0f4; }
+  .bright #topshade { background:linear-gradient(to bottom, rgba(0,0,0,.6), transparent); }
+  #hint { position:absolute; left:3.4vw; top:15vh; font-size:1.8vh; opacity:.5; display:none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="loader">
+    <svg viewBox="-110 -110 220 220"><g id="spinner"></g></svg>
+  </div>
+  <div id="home">
+    <img id="wall" alt="">
+    <video id="bgvid" muted loop playsinline preload="auto" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
+    <canvas id="sway"></canvas>
+    <canvas id="sky"></canvas>
+    <img id="front" alt="">
+    <canvas id="blink"></canvas>
+    <div id="gravel"></div>
+    <div id="leaves"></div>
+    <div id="wash"></div>
+    <div id="flash"></div>
+    <div id="topshade"></div>
+    <div id="shade"></div>
+    <div id="when"><div id="time"></div><div id="date"></div></div>
+    <div id="bar">
+      <div class="btn" id="wifi" data-act="wifi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/></svg><span class="tip">Wi-Fi <span class="state" id="wifiState">…</span></span></div>
+      <div class="btn" id="settings" data-act="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="tip">Settings</span></div>
+      <div class="btn" id="inputs" data-act="inputs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 7.5v6M9.2 10.8 12 13.6l2.8-2.8"/></svg><span class="tip">Inputs</span></div>
+    </div>
+    <div id="row"><div id="grid"></div></div>
+    <div id="clone"></div>
+    <div id="smoke"></div>
+    <canvas id="crow"></canvas>
+    <canvas id="bolt"></canvas>
+    <div id="rain"></div>
+    <div id="cust"><div class="panel"><h3 id="custTitle">Customize</h3><div id="custOpts"></div></div></div>
+    <div id="arrangeHint">Moving app · arrows to move · OK to place it here</div>
+    <div id="hint">R = rain on/off · arrows move · Enter launches</div>
+  </div>
+</div>
+
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute">
+  <defs>
+    <radialGradient id="iris" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ff2a2a"/><stop offset=".7" stop-color="#d4001c"/><stop offset="1" stop-color="#7d000f"/>
+    </radialGradient>
+    <!-- one tomoe: round head at top, curved tail sweeping clockwise -->
+    <g id="tomoe">
+      <circle cx="0" cy="-60" r="11.5" fill="#080002"/>
+      <path d="M-11.5 -60 C-12 -84 6 -94 26 -86 C10 -84 6 -72 11.5 -60Z" fill="#080002"/>
+    </g>
+    <g id="sharingan">
+      <circle r="100" fill="url(#iris)" stroke="#080002" stroke-width="6"/>
+      <circle r="60" fill="none" stroke="#080002" stroke-width="3"/>
+      <use href="#tomoe"/>
+      <use href="#tomoe" transform="rotate(120)"/>
+      <use href="#tomoe" transform="rotate(240)"/>
+      <circle r="17" fill="#080002"/>
+    </g>
+  </defs>
+</svg>
+
+<script src="config.js"></script>
+<script src="crow.js"></script>
+<script src="clone.js"></script>
+<script>
+(() => {
+  const CFG = window.LAUNCHER_CONFIG;
+  const $ = id => document.getElementById(id);
+  // ---------- theme: the chosen one's settings override the defaults ----------
+  const THEMES = window.LAUNCHER_THEMES || {};
+  let themeId = "itachi";
+  try { themeId = localStorage.getItem("theme") || themeId; } catch (e) {}
+  if (!THEMES[themeId]) themeId = Object.keys(THEMES)[0];
+  Object.assign(CFG, THEMES[themeId] || {});
+  const rootStyle = document.documentElement.style;
+  if (CFG.accent) { rootStyle.setProperty("--red", CFG.accent); rootStyle.setProperty("--red-glow", CFG.accentGlow); }
+  if (CFG.rowsTop) rootStyle.setProperty("--rows-top", CFG.rowsTop);
+  if (CFG.bright) document.documentElement.classList.add("bright");   // daylight wallpaper: stronger text shadows
+  const NS = "http://www.w3.org/2000/svg";
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const bridge = window.TVBridge || null;   // present only inside the Android app
+
+  $("spinner").innerHTML = '<use href="#sharingan"/>';
+
+  // ---------- monochrome line icons for the demo apps (real apps use their own icon, greyed until focused) ----------
+  const S = 'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
+  const ICONS = {
+    play:     `<svg viewBox="0 0 24 24" ${S}><rect x="2.5" y="5" width="19" height="14" rx="4"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/></svg>`,
+    star:     `<svg viewBox="0 0 24 24" ${S}><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>`,
+    music:    `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="9.5"/><path d="M7 9.5c3.5-1 7-.6 10 1M7.6 12.6c2.8-.7 5.6-.4 8 .8M8.3 15.5c2.1-.5 4.2-.3 6 .6"/></svg>`,
+    folder:   `<svg viewBox="0 0 24 24" ${S}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`,
+    gear:     `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>`,
+    store:    `<svg viewBox="0 0 24 24" ${S}><path d="M5 3.5v17l15-8.5z"/><path d="M5 3.5l9.5 9.5M5 20.5l9.5-7.5"/></svg>`,
+    globe:    `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="3.5"/><path d="M12 8.5h9M9 14l-4.5 5.5M15 14l-6 7.3"/></svg>`,
+    cone:     `<svg viewBox="0 0 24 24" ${S}><path d="M9.5 3h5l4.5 15H5z"/><path d="M8 9h8M6.6 13.5h10.8M3 21h18"/></svg>`,
+    netflix:  `<svg viewBox="0 0 24 24" ${S}><path d="M7 3.5v17M17 3.5v17M7 3.5l10 17"/></svg>`,
+    prime:    `<svg viewBox="0 0 24 24" ${S}><path d="M3.5 13.5c5 3.6 12 3.6 17 0"/><path d="M17.5 12.2l3 1.3-1.2 3"/><path d="M8 4.5l7 4-7 4z"/></svg>`,
+    shield:   `<svg viewBox="0 0 24 24" ${S}><path d="M12 2.8l7.5 3v5.7c0 4.6-3.1 8.4-7.5 9.7-4.4-1.3-7.5-5.1-7.5-9.7V5.8z"/><path d="M8.6 12.2l2.4 2.4 4.6-4.8"/></svg>`,
+    apple:    `<svg viewBox="0 0 24 24" ${S}><path d="M15.6 12.4c0-2 1.6-2.9 1.7-3a3.7 3.7 0 0 0-2.9-1.6c-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7A3.9 3.9 0 0 0 5.5 10c-1.4 2.4-.4 6 1 8 .7 1 1.5 2 2.5 2s1.4-.6 2.6-.6 1.5.6 2.6.6 1.7-1 2.4-2a8 8 0 0 0 1.1-2.2 3.4 3.4 0 0 1-2.1-3.4z"/><path d="M13.6 6.2a3.4 3.4 0 0 0 .8-2.5 3.5 3.5 0 0 0-2.3 1.2 3.2 3.2 0 0 0-.8 2.4 2.9 2.9 0 0 0 2.3-1.1z"/></svg>`,
+    film:     `<svg viewBox="0 0 24 24" ${S}><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 8h4M3 12h4M3 16h4M17 8h4M17 12h4M17 16h4"/></svg>`,
+    tv:       `<svg viewBox="0 0 24 24" ${S}><rect x="2.5" y="5" width="19" height="12.5" rx="2"/><path d="M8 21h8M9 2.5 12 5l3-2.5"/></svg>`,
+    disney:   `<svg viewBox="0 0 24 24" ${S}><path d="M3.5 15.5c3-6.5 10-9.5 17-7"/><path d="M12 9.5v9M8.5 14h7"/><circle cx="20.5" cy="8.5" r=".6" fill="currentColor"/></svg>`,
+    zee:      `<svg viewBox="0 0 24 24" ${S}><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 8h8l-8 8h8"/></svg>`,
+    browser:  `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.7 5.6 3.7 9s-1.2 6.4-3.7 9c-2.5-2.6-3.7-5.6-3.7-9S9.5 5.6 12 3z"/></svg>`,
+    mic:      `<svg viewBox="0 0 24 24" ${S}><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>`,
+    photo:    `<svg viewBox="0 0 24 24" ${S}><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>`,
+    game:     `<svg viewBox="0 0 24 24" ${S}><path d="M7 7h10a4.5 4.5 0 0 1 4.4 5.4l-.9 4.3a2.3 2.3 0 0 1-4 1L15 16H9l-1.5 1.7a2.3 2.3 0 0 1-4-1l-.9-4.3A4.5 4.5 0 0 1 7 7z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16" cy="11" r=".7" fill="currentColor"/><circle cx="17.5" cy="13" r=".7" fill="currentColor"/></svg>`,
+    radio:    `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg>`,
+    app:      `<svg viewBox="0 0 24 24" ${S}><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>`,
+    plex:     `<svg viewBox="0 0 24 24" ${S}><path d="M8 3.5h4.5L18 12l-5.5 8.5H8l5.5-8.5z"/></svg>`,
+    kodi:     `<svg viewBox="0 0 24 24" ${S}><path d="M12 2.5 21.5 12 12 21.5 2.5 12z"/><path d="M12 7.5 16.5 12 12 16.5 7.5 12z"/></svg>`,
+    twitch:   `<svg viewBox="0 0 24 24" ${S}><path d="M5 3h15v10.5L16 17.5h-4l-3 3H7v-3H3.5V6.5z"/><path d="M11 7.5v4.5M15.5 7.5v4.5"/></svg>`,
+    crunchy:  `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="9"/><circle cx="14.5" cy="10.5" r="3.5"/></svg>`,
+    podcast:  `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="10" r="2.5"/><path d="M12 13v8M7.5 15a6.5 6.5 0 1 1 9 0M5 18a10 10 0 1 1 14 0"/></svg>`,
+    book:     `<svg viewBox="0 0 24 24" ${S}><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20"/></svg>`,
+    cloud:    `<svg viewBox="0 0 24 24" ${S}><path d="M7 18h10.5a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 18z"/></svg>`,
+    cast:     `<svg viewBox="0 0 24 24" ${S}><path d="M3 8V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><path d="M3 12a8 8 0 0 1 8 8M3 16a4 4 0 0 1 4 4"/><circle cx="3.5" cy="20" r=".6" fill="currentColor"/></svg>`,
+    fitness:  `<svg viewBox="0 0 24 24" ${S}><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>`,
+    palette:  `<svg viewBox="0 0 24 24" ${S}><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.2-1-1.6-1-2.7 0-1 .8-1.6 1.8-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/></svg>`,
+    sliders:  `<svg viewBox="0 0 24 24" ${S}><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>`,
+  };
+  function tileFace(a) {
+    if (a.icon) return `<img src="${a.icon}" alt="">`;
+    if (a.svg && ICONS[a.svg]) return ICONS[a.svg];
+    const m = a.mark || a.label[0];
+    const fs = m.length > 5 ? .17 : m.length > 3 ? .22 : m.length > 2 ? .28 : .34;
+    return `<span class="txt" style="font-size:calc(var(--icon, 10vh) * ${fs})">${m}</span>`;
+  }
+
+  // ---------- apps ----------
+  let apps = CFG.demoApps;
+  if (bridge) { try { apps = JSON.parse(bridge.getApps()); } catch (e) { console.log(e); } }
+  apps = apps.filter(a => a.pkg !== CFG.inputsPkg);
+  // known apps get the launcher's own line icons so every tile matches; unknown apps keep their real (greyscaled) icon
+  apps.forEach(a => {
+    let ic = (CFG.iconOverrides || {})[a.pkg];
+    if (!ic && a.pkg) { const n = (a.label + " " + a.pkg).toLowerCase(), g = (CFG.iconGuess || []).find(([k]) => n.includes(k)); if (g) ic = g[1]; }
+    if (!ic && a.pkg) ic = "app";                       // last resort: a neutral app glyph, never the original colour icon
+    if (ic && ic[0] === "~") { a.mark = ic.slice(1); delete a.svg; delete a.icon; }   // "~ZEE5": the brand's own wordmark in the theme's lettering
+    else if (ic) { a.svg = ic; delete a.icon; }
+  });
+  apps.push({ label: "Themes", act: "themes", svg: "palette" }, { label: "Customize", act: "customize", svg: "sliders" });   // launcher settings   // "Live TV" is really the HDMI input switcher: it lives in the top bar
+  const row = $("grid"), view = $("row");
+
+  // ---------- app order (Customize): as installed, A-Z, Z-A, most used, or the user's own arrangement ----------
+  const store = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  const ORDERS = [["default", "As installed"], ["az", "A to Z"], ["za", "Z to A"], ["used", "Most used first"], ["custom", "My arrangement"]];
+  let order = store("order", "default");
+  const usage = store("usage", {});                   // launches per app
+  const installed = apps.filter(a => a.pkg), tail = apps.filter(a => !a.pkg);   // Themes and Customize always stay last
+  const realApps = installed.slice();                 // working copy while rearranging by hand
+  function ordered() {
+    const list = installed.slice();
+    if (order === "az") list.sort((a, b) => a.label.localeCompare(b.label));
+    else if (order === "za") list.sort((a, b) => b.label.localeCompare(a.label));
+    else if (order === "used") list.sort((a, b) => (usage[b.pkg] || 0) - (usage[a.pkg] || 0));
+    else if (order === "custom") {                    // new apps (not arranged yet) go after the arranged ones
+      const c = store("customOrder", []), at = a => { const i = c.indexOf(a.pkg); return i < 0 ? 1e9 : i; };
+      list.sort((a, b) => at(a) - at(b));
+    }
+    return list.concat(tail);
+  }
+  function renderApps() {
+    apps = ordered();
+    row.innerHTML = "";
+    apps.forEach((a, i) => {
+      const d = document.createElement("div");
+      d.className = "app"; d.dataset.i = i;
+      d.innerHTML = `<div class="tile">${tileFace(a)}</div><div class="lbl"></div>`;
+      d.querySelector(".lbl").textContent = a.label;
+      row.appendChild(d);
+    });
+    items.length = firstApp; items.push(...row.children);
+  }
+  const cols = CFG.appCols || 7;
+  row.style.setProperty("--cols", cols);
+  row.style.setProperty("--icon", `min(${CFG.iconVh || 10}vh, calc(92vw / ${cols} / 1.5))`);
+  // two rows show at once; selecting a row below/above them scrolls the grid by a row
+  let viewRow = 0;
+  const rowH = () => view.clientHeight / 2;
+  function sizeRows() {
+    const oneRow = apps.length <= cols;                // a single row sits on the bottom line, not the top one
+    row.style.setProperty("--rowh", rowH() + "px"); row.style.transform = `translateY(${oneRow ? rowH() : -viewRow * rowH()}px)`;
+    [...row.children].forEach((a, i) => { const r = Math.floor(i / cols); a.classList.toggle("away", r < viewRow || r > viewRow + 1); });
+  }
+  function scrollTo(i) {                         // i = app index; returns true if the grid moved
+    const r = Math.floor(i / cols), v = r > viewRow + 1 ? r - 1 : r < viewRow ? r : viewRow;
+    if (v === viewRow) return false;
+    viewRow = v; sizeRows(); return true;
+  }
+
+  // everything the D-pad can land on: top-bar buttons + app tiles
+  const items = [$("wifi"), $("settings"), $("inputs")];
+  const firstApp = 3;
+  renderApps(); sizeRows();
+  const qf = new URLSearchParams(location.search).get("focus");
+  let focus = firstApp + +(qf || 0);   // the first app (top-right) starts selected
+
+  const wall = $("wall");
+
+  // map wallpaper-fraction coords -> screen px (object-fit: cover math)
+  function wallRect() {
+    const W = innerWidth, H = innerHeight;
+    const iw = wall.naturalWidth || 1920, ih = wall.naturalHeight || 1080;
+    const s = Math.max(W / iw, H / ih);
+    const w = iw * s, h = ih * s;
+    return { x: (W - w) / 2, y: (H - h) / 2, w, h, s };
+  }
+  function layout() {
+    const r = wallRect(), f = CFG.front;
+    const fr = $("front").style;
+    if (f) { fr.left = r.x + f.x * r.w + "px"; fr.top = r.y + f.y * r.h + "px"; fr.width = f.w * r.w + "px"; fr.height = f.h * r.h + "px"; }
+    else fr.display = "none";
+    blink.resize(); chidori.resize(); sway.resize(); if (clone) clone.resize();
+    atmo.resize();
+    crow.resize();
+    rain.resize();
+  }
+
+  const rnd = (a, b) => a + Math.random() * (b - a);
+
+  // ---------- atmosphere (behind Itachi): drifting clouds + wandering mist, drawn at half resolution ----------
+  const atmo = (() => {
+    const cv = $("sky"), cx = cv.getContext("2d"), Q = 0.5;   // half-res is plenty for soft clouds and fog
+    let W = 0, H = 0, o1 = 0, o2 = 0, t = 0, mists = [];
+    const tex = new Image(); tex.src = CFG.cloudTexture;
+    const mask = new Image(); if (CFG.cloudMask) mask.src = CFG.cloudMask.src;   // the character's shape, kept clear of clouds
+    // soft smoke puffs, pre-rendered once
+    const sprites = [0, 1, 2].map(() => {
+      const c = document.createElement("canvas"); c.width = c.height = 384;
+      const g = c.getContext("2d");
+      for (let i = 0; i < 46; i++) {
+        const a = rnd(0, 6.283), d = rnd(0, 120), x = 192 + Math.cos(a) * d * 1.35, y = 192 + Math.sin(a) * d * .7, r = rnd(45, 110);
+        const gr = g.createRadialGradient(x, y, 0, x, y, r);
+        gr.addColorStop(0, "rgba(175,190,212,.10)"); gr.addColorStop(1, "rgba(175,190,212,0)");
+        g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+      return c;
+    });
+    function resize() {
+      W = innerWidth; H = innerHeight;
+      cv.width = Math.round(W * Q); cv.height = Math.round(H * Q);
+      const n = Math.round(9 * (CFG.mist ?? 1));
+      mists = Array.from({ length: n }, (_, i) => ({
+        s: sprites[i % 3], x: rnd(0, W), y: rnd(0, H * 0.95), size: rnd(.45, 1.0) * W,
+        dir: rnd(0, 6.283), sp: rnd(10, 26), turn: rnd(-.08, .08), a: rnd(.3, .7), ph: rnd(0, 6.283)
+      }));
+    }
+    function draw(dt) {
+      t += dt;
+      cx.setTransform(Q, 0, 0, Q, 0, 0);
+      cx.globalCompositeOperation = "source-over";
+      cx.clearRect(0, 0, W, H);
+      const r = wallRect();
+      // moving clouds: two layers of the wallpaper's own sky, drifting at different speeds (parallax)
+      if (tex.complete && tex.naturalWidth) {
+        const layer = (off, scale, alpha, y0) => {
+          const th = H * 0.82 * scale, tw = th * tex.naturalWidth / tex.naturalHeight;
+          cx.globalAlpha = alpha;
+          for (let x = -(off % tw); x < W; x += tw) cx.drawImage(tex, x, y0, tw, th);
+        };
+        o1 += dt * W * 0.006; o2 += dt * W * 0.013;
+        layer(o1, 1.0, .30, 0);
+        layer(o2, 1.35, .16, -H * .08);
+        cx.globalAlpha = 1;
+        // fade clouds out toward the bottom and thin them over the moon
+        cx.globalCompositeOperation = "destination-in";
+        const fade = cx.createLinearGradient(0, 0, 0, H);
+        fade.addColorStop(0, "#000"); fade.addColorStop(.55, "#000"); fade.addColorStop(.85, "rgba(0,0,0,0)");
+        cx.fillStyle = fade; cx.fillRect(0, 0, W, H);
+        const m = CFG.moon, mx = r.x + m.x * r.w, my = r.y + m.y * r.h, mr = m.r * r.w;
+        cx.globalCompositeOperation = "destination-out";
+        const hole = cx.createRadialGradient(mx, my, 0, mx, my, mr * 1.1);
+        hole.addColorStop(0, "rgba(0,0,0,.9)"); hole.addColorStop(.75, "rgba(0,0,0,.7)"); hole.addColorStop(1, "rgba(0,0,0,0)");
+        cx.fillStyle = hole; cx.fillRect(mx - mr * 1.2, my - mr * 1.2, mr * 2.4, mr * 2.4);
+        cx.globalCompositeOperation = "source-over";
+      }
+      // mist: big smoke puffs wandering in slowly turning random directions, wrapping around the screen
+      for (const p of mists) {
+        p.dir += (p.turn + Math.sin(t * .17 + p.ph) * .05) * dt;
+        p.x += Math.cos(p.dir) * p.sp * dt; p.y += Math.sin(p.dir) * p.sp * .6 * dt;
+        const half = p.size / 2;
+        if (p.x < -half) p.x = W + half; if (p.x > W + half) p.x = -half;
+        if (p.y < -half * .5) p.y = H * .95 + half * .5; if (p.y > H * .95 + half * .5) p.y = -half * .5;
+        cx.globalAlpha = p.a * (.75 + .25 * Math.sin(t * .3 + p.ph));      // slowly breathing density
+        cx.drawImage(p.s, p.x - half, p.y - half * .55, p.size, p.size * .55);
+      }
+      cx.globalAlpha = 1;
+      // over a video background the character is in the video itself, so the clouds pass behind him
+      if (CFG.cloudMask && mask.complete && mask.naturalWidth) {
+        const f = CFG.cloudMask;
+        cx.globalCompositeOperation = "destination-out";
+        cx.drawImage(mask, r.x + f.x * r.w, r.y + f.y * r.h, f.w * r.w, f.h * r.h);
+        cx.globalCompositeOperation = "source-over";
+      }
+    }
+    return { resize, draw };
+  })();
+
+  // ---------- rain (in front), light version for the TV: three depth layers of streaks with gusty wind,
+  //            drawn at half resolution; near drops stop on tile and button tops (no splashes or runoff) ----------
+  const rain = (() => {
+    const box = $("rain");
+    // far: short, faint and slow; near: long, bright and fast. Each sheet is two copies of a tile stacked, sliding
+    // down by one tile height per loop, so it repeats seamlessly.
+    const LAYERS = [
+      { n: 260, len: [.010, .018], w: .7, a: .16, t: 1.9 },
+      { n: 120, len: [.024, .038], w: 1.0, a: .28, t: 1.0 },
+      { n: 40, len: [.055, .085], w: 1.6, a: .40, t: .62 }
+    ], slant = .1;
+    function tile(L, W, H) {
+      const c = document.createElement("canvas"); c.width = Math.round(W / 2); c.height = Math.round(H / 2);   // half size, scaled up
+      const g = c.getContext("2d"); g.scale(.5, .5); g.lineCap = "round";
+      g.strokeStyle = `rgba(205,218,240,${L.a})`; g.lineWidth = L.w * 2; g.beginPath();
+      for (let i = 0; i < L.n; i++) {
+        const x = Math.random() * W, y = Math.random() * H, l = rnd(...L.len) * H;
+        for (const dy of [0, H]) { g.moveTo(x, y - dy); g.lineTo(x - l * slant, y - dy - l); }   // wrap at the top edge
+      }
+      g.stroke();
+      return c.toDataURL();
+    }
+    function resize() {
+      const W = innerWidth * 1.2, H = innerHeight;
+      box.innerHTML = "";
+      for (const L of LAYERS) {
+        const d = document.createElement("div"); d.className = "sheet";
+        d.style.height = H * 2 + "px"; d.style.backgroundImage = `url(${tile(L, W, H)})`; d.style.backgroundSize = `${W}px ${H}px`;
+        d.style.setProperty("--t", L.t + "s"); d.style.setProperty("--drift", -H * slant + "px");
+        box.appendChild(d);
+      }
+    }
+    // (kept for callers: the CSS sheets need no per-frame work)
+    return { resize, measure() {}, step() {}, draw() {}, toggle() { box.style.display = box.style.display === "none" ? "" : "none"; } };
+  })();
+
+  // ---------- Itachi's crow (crow.js): sits on the selected item ----------
+  const crow = makeCrow($("crow"), { size: CFG.crowSize });
+  // where the crow stands: on the top edge of the item at its focused (zoomed) size, a little right of centre
+  function perchPoint(el, zoomed = true) {
+    const box = el.querySelector(".tile") || el, b = box.getBoundingClientRect();
+    const zoom = !zoomed ? 1 : box.classList.contains("btn") ? 1.1 : 1.14;
+    const h = box.offsetHeight * zoom, cy = b.top + b.height / 2;
+    return [b.left + b.width * .56, cy - h / 2 + 1];
+  }
+
+  // per-effect switches and JS time per effect, readable over DevTools as window.fx (for tuning on the TV)
+  const EFFECTS = { rain: ["Rain", "rain"], crow: ["Crow", "crow"], atmo: ["Moving clouds", "sky"], chidori: ["Chidori", "bolt"], gravel: ["Rising gravel", "gravel"], flash: ["Lightning flashes", "flash"],
+    clone: ["Shadow clone", "clone"], sway: ["Moving leaves & grass", "sway"], leaves: ["Falling leaves", "leaves"] };
+  const themeFx = CFG.effects || Object.keys(EFFECTS);
+  const fx = window.fx = { on: {}, ms: {}, frames: 0 };
+  for (const k in EFFECTS) { fx.on[k] = 1; fx.ms[k] = 0; }
+  try { Object.assign(fx.on, JSON.parse(localStorage.getItem("fx") || "{}")); } catch (e) {}
+  const live = k => themeFx.includes(k) && fx.on[k];
+  function timed(k, f) { if (!live(k)) return; const t = performance.now(); f(); fx.ms[k] += performance.now() - t; }
+  function applyFx() {
+    for (const k in EFFECTS) $(EFFECTS[k][1]).style.display = live(k) ? "" : "none";
+    if (!live("chidori")) chidori.light(false);
+    if (!CFG.video) wall.style.visibility = live("sway") && sway.ok ? "hidden" : "";   // the moving copy replaces the still wallpaper
+  }
+
+  // ---------- one panel for Customize (effect switches) and Themes (pick one); Up/Down, OK, Back ----------
+  const panel = (() => {
+    let opts = [], sel = 0, rows = [];
+    const box = $("custOpts");
+    function paint() {
+      rows.forEach((o, i) => {
+        o.classList.toggle("sel", i === sel);
+        if (!opts[i]) return;
+        if (opts[i].value) o.querySelector(".val").textContent = opts[i].value();
+        else o.classList.toggle("on", !!opts[i].on());
+      });
+    }
+    function pick() { if (!opts[sel]) return api.close(); opts[sel].pick(); if (api.open) paint(); }
+    const api = {
+      open: false,
+      show(title, list) {
+        $("custTitle").textContent = title; opts = list; box.innerHTML = "";
+        rows = [...list.map(o => Object.assign(document.createElement("div"),
+          { className: "opt", innerHTML: `<span>${o.label}</span>` + (o.value ? `<span class="val"></span>` : o.on ? `<span class="sw"></span>` : "") })),
+          Object.assign(document.createElement("div"), { className: "opt done", textContent: "Done" })];
+        rows.forEach((o, i) => { box.appendChild(o); o.onclick = () => { sel = i; pick(); }; o.onmouseover = () => { sel = i; paint(); }; });
+        api.open = true; sel = Math.max(0, list.findIndex(o => o.current)); paint(); $("cust").classList.add("show");
+      },
+      close() { api.open = false; $("cust").classList.remove("show"); },
+      key(k) {
+        if (k === "ArrowUp") sel = Math.max(0, sel - 1);
+        else if (k === "ArrowDown") sel = Math.min(rows.length - 1, sel + 1);
+        else if (k === "Enter" || k === " ") return pick();
+        else if (k === "Escape" || k === "Backspace") return api.close();
+        paint();
+      }
+    };
+    return api;
+  })();
+  const openCustomize = () => panel.show("Customize", [
+    ...themeFx.filter(k => EFFECTS[k]).map(k => ({
+      label: EFFECTS[k][0], on: () => fx.on[k],
+      pick() { fx.on[k] = fx.on[k] ? 0 : 1; try { localStorage.setItem("fx", JSON.stringify(fx.on)); } catch (e) {} applyFx(); }
+    })),
+    { label: "App order", value: () => ORDERS.find(o => o[0] === order)[1],     // OK steps through the orders
+      pick() {
+        const i = ORDERS.findIndex(o => o[0] === order);
+        let next = ORDERS[(i + 1) % ORDERS.length][0];
+        if (next === "custom" && !store("customOrder", null)) next = ORDERS[0][0];   // no arrangement yet: skip it
+        order = next; save("order", order); reorder();
+      } },
+    { label: "Rearrange apps", value: () => "Move ›", pick() { panel.close(); okHeld = true; arrange.start(); } }   // the OK release that follows must not drop it
+  ]);
+  // re-lay the grid in the new order and keep the same app selected
+  function reorder(keepPkg) {
+    const cur = keepPkg || (focus >= firstApp ? apps[focus - firstApp].pkg || apps[focus - firstApp].act : null);
+    renderApps(); sizeRows();
+    const i = cur ? apps.findIndex(a => (a.pkg || a.act) === cur) : -1;
+    focus = -1; setFocus(i >= 0 ? firstApp + i : firstApp);
+    setTimeout(() => live("rain") && rain.measure(), 300);
+  }
+  // ---------- manual rearranging: the selected app is lifted and the arrows move it; OK or Back puts it down ----------
+  const arrange = (() => {
+    let on = false;
+    const hint = $("arrangeHint");
+    function start() {
+      if (focus < firstApp || !apps[focus - firstApp].pkg) setFocus(firstApp);
+      realApps.splice(0, realApps.length, ...apps.filter(a => a.pkg));   // start from the order on screen
+      on = true; items[focus].classList.add("moving"); hint.classList.add("show");
+    }
+    function done() {
+      on = false; items[focus] && items[focus].classList.remove("moving"); hint.classList.remove("show");
+      save("customOrder", apps.filter(a => a.pkg).map(a => a.pkg)); order = "custom"; save("order", order);
+    }
+    function key(k) {
+      if (k === "Enter" || k === " " || k === "Escape" || k === "Backspace") return done();
+      const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[k]; if (!d) return;
+      const to = neighbour(...d);
+      if (to < firstApp || !apps[to - firstApp].pkg) return;            // only among real apps (not the top bar or Themes/Customize)
+      const a = focus - firstApp, b = to - firstApp, pkg = apps[a].pkg;
+      const ia = realApps.indexOf(apps[a]), ib = realApps.indexOf(apps[b]);
+      realApps.splice(ib, 0, realApps.splice(ia, 1)[0]);               // take it out and slot it in there; the rest shift along
+      save("customOrder", realApps.map(x => x.pkg)); order = "custom";
+      reorder(pkg); items[focus].classList.add("moving");
+    }
+    return { start, key, get on() { return on; }, done };
+  })();
+  const openThemes = () => panel.show("Themes", Object.keys(THEMES).map(id => ({
+    label: THEMES[id].name || id, current: id === themeId, on: () => id === themeId,
+    pick() { if (id === themeId) return; try { localStorage.setItem("theme", id); } catch (e) {} bridge ? bridge.reload() : location.reload(); }
+  })));
+
+  // ---------- eye blinks: an eyelid sweeps down over each eye and back, every few seconds ----------
+  const blink = (() => {
+    const cv = $("blink"), cx = cv.getContext("2d"), eyes = CFG.eyes || [];
+    let box = null, next = 2.5, t = -1, twice = false;
+    function resize() {
+      if (!eyes.length) return;
+      const r = wallRect();
+      const px = eyes.map(([x, y, w, h]) => ({ x: r.x + x * r.w, y: r.y + y * r.h, w: w * r.w, h: h * r.h }));
+      const l = Math.min(...px.map(e => e.x - e.w)), tp = Math.min(...px.map(e => e.y - e.h));
+      const rr = Math.max(...px.map(e => e.x + e.w)), bt = Math.max(...px.map(e => e.y + e.h));
+      box = { l, t: tp, w: rr - l, h: bt - tp, eyes: px };
+      cv.width = Math.ceil(box.w); cv.height = Math.ceil(box.h);
+      Object.assign(cv.style, { left: l + "px", top: tp + "px", width: box.w + "px", height: box.h + "px" });
+    }
+    function draw(dt) {
+      if (!box) return;
+      next -= dt;
+      if (next <= 0 && t < 0) { t = 0; twice = Math.random() < .2; next = rnd(3, 7); }
+      if (t < 0) return;
+      t += dt;
+      const D = .17, p = Math.sin(Math.PI * Math.min(1, t / D));   // open -> shut -> open
+      cx.clearRect(0, 0, cv.width, cv.height);
+      if (t >= D) { if (twice) { twice = false; t = 0; } else t = -1; return; }
+      for (const e of box.eyes) {
+        const ex = e.x - box.l, ey = e.y - box.t, rx = e.w / 2, ry = e.h / 2;
+        const top = ey - ry * 1.3, lidY = top + ry * 2.6 * p;
+        cx.save();
+        cx.beginPath(); cx.ellipse(ex, ey, rx * 1.15, ry * 1.3, 0, 0, 6.283); cx.clip();
+        cx.fillStyle = CFG.lid || "#444";
+        cx.fillRect(ex - rx * 1.2, top, rx * 2.4, lidY - top);
+        cx.restore();
+        cx.strokeStyle = "rgba(8,8,14,.9)"; cx.lineWidth = Math.max(1, e.h * .22);   // lashes along the lid's edge
+        cx.beginPath(); cx.moveTo(ex - rx * 1.1, lidY - ry * .2 * p); cx.quadraticCurveTo(ex, lidY + ry * .25, ex + rx * 1.1, lidY - ry * .2 * p); cx.stroke();
+      }
+    }
+    return { resize, draw };
+  })();
+
+  // ---------- Chidori, drawn entirely here: a white-hot core in his palm, a dense crackle of forked bolts round
+  //            the hand, arcs lashing out to the ground and up his forearm, sparks, and one beam to the selected item ----------
+  const chidori = (() => {
+    // Drawn at full device resolution so the bolts stay crisp on a big screen; the canvas only covers the box
+    // the lightning can reach (the ball plus the beam to the current item), which keeps it cheap.
+    const cv = $("bolt"), cx = cv.getContext("2d"), C = CFG.chidori;
+    let W = 0, H = 0, ox = 0, oy = 0, ax = 0, ay = 0, R = 0, arcs = [], dots = [], beam = null, regen = 0, tgt = null, end = null, flash = 1;
+    let bx = 0, by = 0, bw = 0, bh = 0;
+    function resize() {
+      W = innerWidth; H = innerHeight;
+      if (!C) return;
+      const r = wallRect(); ox = r.x + C.x * r.w; oy = r.y + C.y * r.h; R = C.r * r.w;
+      ax = r.x + C.arm[0] * r.w; ay = r.y + C.arm[1] * r.h;
+      wash.style.setProperty("--lx", ox + "px"); wash.style.setProperty("--ly", oy + "px");
+      frame();
+    }
+    // the box covers the ball and everything down to the bottom of the icon rows, sized once per layout
+    function frame() {
+      const v = view.getBoundingClientRect();
+      const x0 = 0, y0 = Math.max(0, oy - 6 * R), x1 = W, y1 = Math.min(H, Math.max(oy + 5 * R, v.bottom));
+      bx = Math.floor(x0); by = Math.floor(y0); bw = Math.ceil(x1 - bx); bh = Math.ceil(y1 - by);
+      const q = devicePixelRatio || 1;
+      cv.width = Math.round(bw * q); cv.height = Math.round(bh * q);
+      Object.assign(cv.style, { left: bx + "px", top: by + "px", width: bw + "px", height: bh + "px", right: "auto", bottom: "auto" });
+      cx.setTransform(q, 0, 0, q, -bx * q, -by * q);         // keep drawing in screen coordinates
+      regen = 0;
+    }
+    const wash = $("wash");
+    // the scene dims and lights up with each crackle; now and then a bright flash
+    // beamOnly: the background video already shows the Chidori and its light, so only the beam is drawn here
+    function light(on) {
+      if (C && C.beamOnly) on = false;
+      wash.style.display = on ? "block" : "none";
+      if (on) wash.style.opacity = Math.random() < .12 ? rnd(.85, 1) : rnd(.25, .6);
+    }
+    // jagged path from a to b by midpoint displacement
+    function bolt(x1, y1, x2, y2, rough, depth) {
+      let pts = [[x1, y1], [x2, y2]];
+      for (let d = 0; d < depth; d++) {
+        const out = [pts[0]];
+        for (let i = 1; i < pts.length; i++) {
+          const [px, py] = pts[i - 1], [qx, qy] = pts[i], len = Math.hypot(qx - px, qy - py) || 1;
+          const o = rnd(-1, 1) * len * rough;
+          out.push([(px + qx) / 2 - (qy - py) / len * o, (py + qy) / 2 + (qx - px) / len * o], pts[i]);
+        }
+        pts = out;
+      }
+      return pts;
+    }
+    // a bolt plus a few forks that split off it and fade out sooner
+    function forked(x1, y1, x2, y2, rough, depth, forks) {
+      const main = bolt(x1, y1, x2, y2, rough, depth), out = [[main, 1]];
+      const dir = Math.atan2(y2 - y1, x2 - x1), len = Math.hypot(x2 - x1, y2 - y1);
+      for (let k = 0; k < forks; k++) {
+        const p = main[(main.length * rnd(.2, .8)) | 0], a = dir + rnd(-1, 1) * .9, l = len * rnd(.2, .45);
+        out.push([bolt(p[0], p[1], p[0] + Math.cos(a) * l, p[1] + Math.sin(a) * l, rough, depth - 2), .6]);
+      }
+      return out;
+    }
+    // the beam, styled like the video's bolts: few, sharp kinks (low subdivision, high roughness) and a couple of
+    // short twigs; its first stretch fades in, so it seems to grow out of the Chidori rather than start on his hand
+    function makeBeam() {
+      if (!end) { beam = null; return; }
+      const main = bolt(ox, oy, end[0], end[1], .2, 5), twigs = [];
+      const dir = Math.atan2(end[1] - oy, end[0] - ox), len = Math.hypot(end[0] - ox, end[1] - oy);
+      for (let k = 0; k < 2; k++) {
+        const i = (main.length * rnd(.35, .8)) | 0, p = main[i], a = dir + (Math.random() < .5 ? -1 : 1) * rnd(.4, .9), l = len * rnd(.06, .14);
+        twigs.push({ pts: bolt(p[0], p[1], p[0] + Math.cos(a) * l, p[1] + Math.sin(a) * l, .25, 3), at: i / main.length });
+      }
+      beam = { main, twigs };
+    }
+    function beamStroke() {
+      const g = (a0, col) => {                           // transparent at the hand, full strength from ~30% on
+        const gr = cx.createLinearGradient(ox, oy, end[0], end[1]);
+        gr.addColorStop(0, col + "0)"); gr.addColorStop(.12, col + (a0 * .35) + ")"); gr.addColorStop(.3, col + a0 + ")"); gr.addColorStop(1, col + a0 + ")");
+        return gr;
+      };
+      const path = pts => { cx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) cx.lineTo(pts[i][0], pts[i][1]); };
+      cx.beginPath(); path(beam.main); for (const t of beam.twigs) path(t.pts);
+      const u = innerWidth / 960;                       // widths match the video's bolts on any screen (the TV is 960 css px wide)
+      cx.lineWidth = 9 * u; cx.strokeStyle = g(.22, "rgba(60,105,255,"); cx.stroke();     // soft blue halo
+      cx.lineWidth = 3.6 * u; cx.strokeStyle = g(.8, "rgba(95,150,255,"); cx.stroke();    // electric blue body
+      cx.lineWidth = 1.5 * u; cx.strokeStyle = g(1, "rgba(240,247,255,"); cx.stroke();    // white-hot core
+    }
+    function make() {
+      arcs = []; dots = [];
+      const from = (a, k) => [ox + Math.cos(a) * R * k, oy + Math.sin(a) * R * k];
+      if (C.beamOnly) { makeBeam(); return; }
+      for (let i = 0; i < 16; i++) {                           // the crackling ball round his hand
+        const a = rnd(0, 6.283), l = R * rnd(.8, 2.8), [sx, sy] = from(a + rnd(-.4, .4), .2);
+        arcs.push(...forked(sx, sy, ox + Math.cos(a) * l, oy + Math.sin(a) * l, .35, 4, Math.random() < .4 ? 1 : 0));
+      }
+      for (let i = 0; i < 4; i++) {                            // long arcs lashing out sideways and down to the ground
+        const a = (i % 2 ? Math.PI : 0) + (i % 2 ? -1 : 1) * rnd(-.55, .3), l = R * rnd(3, 5.5), [sx, sy] = from(a, .4);
+        arcs.push(...forked(sx, sy, ox + Math.cos(a) * l, oy + Math.sin(a) * l, .3, 6, 2));
+      }
+      for (let i = 0; i < 2; i++) {                            // current crawling up the forearm
+        const t = rnd(.35, .95), j = rnd(-1, 1) * R * .5;
+        const tx = ox + (ax - ox) * t, ty = oy + (ay - oy) * t, len = Math.hypot(ax - ox, ay - oy) || 1;
+        arcs.push([bolt(ox, oy, tx - (ay - oy) / len * j, ty + (ax - ox) / len * j, .3, 5), .75]);
+      }
+      for (let i = 0; i < 14; i++) { const a = rnd(0, 6.283), d = R * rnd(.6, 3.2); dots.push([ox + Math.cos(a) * d, oy + Math.sin(a) * d, rnd(.6, 1.6)]); }
+      makeBeam();
+    }
+    // glows are pre-rendered once into small sprites and stamped, which the TV's GPU handles far better than live gradients
+    function sprite(stops) {
+      const c = document.createElement("canvas"); c.width = c.height = 128;
+      const g = c.getContext("2d"), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      for (const [o, col] of stops) gr.addColorStop(o, col);
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+      return c;
+    }
+    const SPR = {
+      wide: sprite([[0, "rgba(70,120,255,.32)"], [1, "rgba(30,60,255,0)"]]),
+      halo: sprite([[0, "rgba(170,210,255,.9)"], [.45, "rgba(80,140,255,.45)"], [1, "rgba(40,90,255,0)"]]),
+      core: sprite([[0, "rgba(255,255,255,1)"], [.55, "rgba(220,235,255,.85)"], [1, "rgba(150,190,255,0)"]]),
+      spark: sprite([[0, "rgba(215,232,255,.75)"], [1, "rgba(60,110,255,0)"]])
+    };
+    function glow(x, y, r, spr, a) { cx.globalAlpha = a; cx.drawImage(spr, x - r, y - r, r * 2, r * 2); cx.globalAlpha = 1; }
+    // every bolt of the same strength goes into one path, so each pass is a single stroke call
+    function strokes(list) {
+      for (const a of [1, .75, .6]) {
+        const ps = list.filter(e => e[1] === a); if (!ps.length) continue;
+        cx.beginPath();
+        for (const [p] of ps) { cx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) cx.lineTo(p[i][0], p[i][1]); }
+        cx.lineWidth = 2.6; cx.strokeStyle = `rgba(110,160,255,${.55 * a})`; cx.stroke();   // blue body (the wide glow comes from the sprites)
+        cx.lineWidth = 1.1; cx.strokeStyle = `rgba(240,247,255,${a})`; cx.stroke();          // white-hot centre line
+      }
+    }
+    // Lightning flickers in steps anyway, so the canvas is only repainted when a new crackle is made
+    // (about 16 times a second) or while the beam is sliding to a new item.
+    function draw(dt) {
+      if (!C) return;
+      let moving = false;
+      if (tgt) {                                               // the beam's tip slides after the selection, like the crow
+        if (!end) end = [ox, oy];
+        const k = 1 - Math.exp(-dt * 10), dx = (tgt[0] - end[0]) * k, dy = (tgt[1] - end[1]) * k;
+        end[0] += dx; end[1] += dy; moving = Math.abs(dx) + Math.abs(dy) > .3;
+      }
+      if ((regen -= dt) <= 0) { regen = rnd(.06, .1); flash = rnd(.7, 1); light(true); make(); }
+      else if (moving) makeBeam();                             // sliding: keep this crackle, just re-draw the beam
+      else return;
+      cx.clearRect(bx, by, bw, bh);
+      cx.globalCompositeOperation = "lighter"; cx.lineCap = cx.lineJoin = "round";
+      const f = flash, s = R * (.92 + .16 * f);
+      if (!C.beamOnly) { glow(ox, oy, s * 5, SPR.wide, f); glow(ox, oy, s * 1.9, SPR.halo, f); }   // light thrown on him and the ground
+      // the crackle stays above the icon rows; only the beam reaches down to them
+      cx.save(); cx.beginPath(); cx.rect(0, 0, W, view.getBoundingClientRect().top - 8); cx.clip();
+      strokes(arcs);
+      cx.restore();
+      if (beam) beamStroke();
+      cx.fillStyle = "rgba(225,238,255,.9)"; cx.beginPath();
+      for (const [x, y, r] of dots) { cx.moveTo(x + r, y); cx.arc(x, y, r, 0, 6.283); }
+      cx.fill();
+      if (!C.beamOnly) glow(ox, oy, s * .8, SPR.core, 1);      // white-hot core
+      if (beam) glow(end[0], end[1], R * .8, SPR.spark, f);    // spark where it lands
+      cx.globalCompositeOperation = "source-over";
+    }
+    return { resize, draw, light, aim(x, y) { tgt = [x, y]; } };
+  })();
+
+  // ---------- rising gravel (Sasuke): shards torn off the ground by the Chidori's energy, drifting up and off the top ----------
+  const gravel = (() => {
+    const box = $("gravel"), G = CFG.gravel;
+    if (!G || !themeFx.includes("gravel")) return { start() {} };
+    // a rock shard: an irregular polygon, dark stone with a cold blue edge where the Chidori catches it
+    function shard(size) {
+      const q = (devicePixelRatio || 1), c = document.createElement("canvas"), n = 5 + (Math.random() * 4 | 0);
+      c.width = c.height = Math.ceil(size * q); c.style.width = c.style.height = size + "px";
+      const g = c.getContext("2d"); g.scale(q, q);
+      const pts = [];
+      for (let i = 0; i < n; i++) { const a = i / n * 6.283 + rnd(-.3, .3), r = size / 2 * rnd(.55, .95); pts.push([size / 2 + Math.cos(a) * r, size / 2 + Math.sin(a) * r * rnd(.6, 1)]); }
+      const path = () => { g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); };
+      path(); const v = rnd(14, 30) | 0; g.fillStyle = `rgb(${v},${v + 3},${v + 16})`; g.fill();
+      g.save(); path(); g.clip();                               // a lit facet and a shadowed one
+      g.fillStyle = "rgba(130,165,245,.32)"; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); g.lineTo(size / 2, size / 2); g.lineTo(pts[1][0], pts[1][1]); g.fill();
+      g.fillStyle = "rgba(0,0,8,.45)"; g.beginPath(); g.moveTo(pts[n >> 1][0], pts[n >> 1][1]); g.lineTo(size / 2, size / 2); g.lineTo(pts[(n >> 1) + 1][0], pts[(n >> 1) + 1][1]); g.fill();
+      g.restore();
+      path(); g.lineWidth = Math.max(.8, size * .06); g.strokeStyle = "rgba(130,170,255,.75)"; g.stroke();
+      return c;
+    }
+    function launch(c, first) {
+      const r = wallRect(), W = innerWidth, H = innerHeight;
+      // mostly from the ground near the Chidori, some from further out
+      const cx0 = r.x + CFG.chidori.x * r.w, x = Math.max(0, Math.min(W, cx0 + (Math.random() + Math.random() + Math.random() - 1.5) * W * .45));
+      const y = r.y + rnd(G.ground[0], G.ground[1]) * r.h, size = parseFloat(c.style.width);
+      const speed = rnd(.7, 1.3) * (size / 14 + .5);             // bigger chunks are nearer, so they move faster
+      c.style.setProperty("--x0", x + "px"); c.style.setProperty("--y0", y + "px");
+      c.style.setProperty("--y1", -size * 2 + "px"); c.style.setProperty("--sway", rnd(-1, 1) * W * .04 + "px");
+      c.style.setProperty("--spin", rnd(-540, 540) + "deg");
+      c.style.setProperty("--dur", (y / H) * 11 / speed + "s"); c.style.setProperty("--delay", (first ? rnd(-8, 3) : rnd(0, 2.5)) + "s");
+      c.style.animation = "none"; void c.offsetWidth; c.style.animation = "";   // restart the animation
+    }
+    return {
+      start() {
+        for (let i = 0; i < G.count; i++) {
+          const c = shard(Math.random() < .25 ? rnd(16, 30) : rnd(6, 14));
+          box.appendChild(c); launch(c, true);
+          c.addEventListener("animationend", () => launch(c, false));
+        }
+      }
+    };
+  })();
+
+  // ---------- sway (Naruto): the wallpaper drawn through WebGL, with leaves and grass rippling in a gusty breeze ----------
+  // A small weight map says what may move (red = leaves, green = grass); everything else stays put.
+  const sway = (() => {
+    const cv = $("sway"), S = CFG.sway, none = { ok: false, resize() {}, draw() {} };
+    if (!S || !themeFx.includes("sway")) return none;
+    let gl = null;
+    try { gl = cv.getContext("webgl", { alpha: false, antialias: false, depth: false, stencil: false }); } catch (e) {}
+    if (!gl) return none;
+    const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o; };
+    const prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, `
+      attribute vec2 p; uniform vec4 rect; varying vec2 uv;
+      void main() { vec2 s = vec2(p.x + 1.0, 1.0 - p.y) * .5; uv = (s - rect.xy) / rect.zw; gl_Position = vec4(p, 0.0, 1.0); }`));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `
+      precision mediump float; uniform sampler2D img, map; uniform float t, gust; varying vec2 uv;
+      void main() {
+        vec4 m = texture2D(map, uv);
+        vec2 o = m.r * gust * vec2(sin(t * 1.6 + uv.y * 38.0 + uv.x * 21.0) * .0016 + .0007 * sin(t * .7), cos(t * 2.2 + uv.x * 33.0) * .0011);
+        o.x += m.g * gust * (sin(t * 2.0 + uv.x * 55.0 - uv.y * 9.0) * .0022 + .0012);
+        gl_FragColor = texture2D(img, uv + o);
+      }`));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return none;
+    gl.useProgram(prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    const U = n => gl.getUniformLocation(prog, n);
+    let ready = 0, frameNo = 0;
+    function texture(unit, src, name) {
+      const im = new Image();
+      im.onload = () => {
+        gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+        try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, im); } catch (e) { console.log(e); return; }
+        for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+        gl.uniform1i(U(name), unit); ready++;
+      };
+      im.src = src;
+    }
+    texture(0, CFG.wallpaper, "img"); texture(1, S.map, "map");
+    function resize() {
+      const q = devicePixelRatio || 1;
+      cv.width = Math.round(innerWidth * q); cv.height = Math.round(innerHeight * q);
+      gl.viewport(0, 0, cv.width, cv.height);
+      const r = wallRect();
+      gl.uniform4f(U("rect"), r.x / innerWidth, r.y / innerHeight, r.w / innerWidth, r.h / innerHeight);
+    }
+    // the breeze comes and goes; leaves are slow, so drawing every other frame is plenty
+    function draw(now) {
+      if (ready < 2 || (frameNo++ & 1)) return;
+      const t = now / 1000, gust = .55 + .3 * Math.sin(t * .23) + .25 * Math.max(0, Math.sin(t * .61 + 1.3)) ** 3;
+      gl.uniform1f(U("t"), t); gl.uniform1f(U("gust"), gust);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      if (!api.ok) { api.ok = true; wall.style.visibility = "hidden"; }   // swap the still picture out once the moving one is up
+    }
+    const api = { ok: false, resize, draw };
+    return api;
+  })();
+
+  // ---------- falling leaves (Naruto): leaves blown off the tree, fluttering down to the grass ----------
+  const leaves = (() => {
+    const box = $("leaves"), L = CFG.leaves;
+    if (!L || !themeFx.includes("leaves")) return { start() {} };
+    function leaf(size) {
+      const q = devicePixelRatio || 1, c = document.createElement("canvas");
+      c.width = Math.ceil(size * q); c.height = Math.ceil(size * .6 * q); c.style.width = size + "px"; c.style.height = size * .6 + "px";
+      const g = c.getContext("2d"); g.scale(q, q);
+      const hue = rnd(75, 115), lit = rnd(28, 46);
+      g.fillStyle = `hsl(${hue},${rnd(45, 65)}%,${lit}%)`;
+      g.beginPath(); g.moveTo(0, size * .3); g.quadraticCurveTo(size * .45, -size * .05, size, size * .3); g.quadraticCurveTo(size * .45, size * .65, 0, size * .3); g.fill();
+      g.strokeStyle = `hsla(${hue},40%,${lit + 18}%,.8)`; g.lineWidth = Math.max(.6, size * .05);
+      g.beginPath(); g.moveTo(size * .05, size * .3); g.lineTo(size * .92, size * .3); g.stroke();      // midrib
+      return c;
+    }
+    function launch(c, first) {
+      const r = wallRect(), size = parseFloat(c.style.width);
+      const x = r.x + rnd(L.from[0], L.from[1]) * r.w, y = r.y + rnd(L.from[2], L.from[3]) * r.h;
+      const y1 = r.y + rnd(L.ground[0], L.ground[1]) * r.h, drift = rnd(.12, .3) * innerWidth;   // the breeze carries them off to one side
+      c.style.setProperty("--x0", x + "px"); c.style.setProperty("--y0", y + "px"); c.style.setProperty("--y1", y1 + "px");
+      c.style.setProperty("--drift", drift * (L.windDir || 1) + "px"); c.style.setProperty("--flut", rnd(14, 34) + "px");
+      c.style.setProperty("--spin", rnd(-720, 720) + "deg");
+      c.style.setProperty("--dur", rnd(7, 12) * (14 / (size + 4)) + "s"); c.style.setProperty("--delay", (first ? rnd(-9, 4) : rnd(1, 6)) + "s");
+      c.style.animation = "none"; void c.offsetWidth; c.style.animation = "";
+    }
+    return {
+      start() {
+        for (let i = 0; i < L.count; i++) {
+          const c = leaf(rnd(9, 20)); box.appendChild(c); launch(c, true);
+          c.addEventListener("animationend", () => launch(c, false));
+        }
+      }
+    };
+  })();
+
+  // ---------- lightning flashes (Itachi): now and then the storm lights the whole scene with a double flicker ----------
+  (function flashes() {
+    const el = $("flash");
+    setTimeout(function next() {
+      if (live("flash") && homeReady) el.animate([{ opacity: 0 }, { opacity: .9, offset: .06 }, { opacity: .15, offset: .18 },
+        { opacity: .6, offset: .27 }, { opacity: .05, offset: .45 }, { opacity: 0 }], { duration: rnd(900, 1400), easing: "ease-out" });
+      setTimeout(next, rnd(9000, 22000));
+    }, rnd(6000, 12000));
+  })();
+
+  // ---------- Naruto's shadow clone (clone.js): replaces the crow in this theme ----------
+  const clone = CFG.clone && themeFx.includes("clone") ? makeClone($("clone"), Object.assign({ smokeBox: $("smoke") }, CFG.clone)) : null;
+
+  // ---------- load governor ----------
+  // Right after the TV boots, Android, Google services and app updates keep all four cores busy for 10-15 minutes, so a
+  // launcher drawing full-screen effects at full rate starves the video decoder and audio. Effects therefore run at a
+  // step rate: every 2nd frame normally (the TV refreshes at 50 Hz, so ~25 fps is plenty for rain and clouds), and every
+  // 4th frame ("lite") while the TV is still starting up or whenever frames start arriving late. Lite ends by itself once
+  // the TV has been up 15 min and frames are steady again.
+  const gov = window.gov = (() => {
+    let lite = true, slow = 0, good = 0;
+    const bootMs = () => { try { return bridge ? +bridge.uptimeMs() : 1e9; } catch (e) { return 1e9; } };
+    function sample(dtMs) {
+      if (dtMs > 34) { slow++; good = 0; } else { good++; if (slow) slow--; }
+      if (slow > 12) lite = true, slow = 0;                       // a run of late frames: back off
+      if (lite && good > 600 && bootMs() > 15 * 60e3) lite = false;   // ~12 s of steady frames after the startup rush
+    }
+    return { sample, get step() { return lite ? 4 : 2; }, get lite() { return lite; } };
+  })();
+  // layers, each with its own time since it was last drawn: rain and crow alternate frames, clouds every other turn
+  const layers = [
+    { k: "rain", run: d => { rain.step(d); rain.draw(); }, every: 1, dt: 0 },
+    { k: "crow", run: d => { crow.step(d); crow.draw(); }, every: 1, dt: 0 },
+    { k: "atmo", run: d => atmo.draw(d), every: 2, dt: 0 }
+  ];
+  let last = performance.now(), fcount = 0;
+  function frame(now) {
+    const dtMs = now - last, dt = Math.min(0.05, dtMs / 1000); last = now;
+    gov.sample(dtMs);
+    timed("chidori", () => chidori.draw(dt));       // already redraws only on a new crackle or while the beam moves
+    for (const L of layers) L.dt += dt;
+    const step = gov.step;                            // 2 normally, 4 while the TV is busy
+    if (fcount % (step / 2) === 0) {                  // this frame may draw one layer
+      const turn = (fcount / (step / 2)) | 0, L = layers[1];
+      // the rain animates itself now, so the crow gets the turns: every one while it flies, every fifth while it sits
+      if (crow.busy || turn % 5 === 0) { timed(L.k, () => L.run(Math.min(.2, L.dt))); L.dt = 0; }
+      const C = layers[2];
+      if (turn % 4 === 3) { timed(C.k, () => C.run(Math.min(.3, C.dt))); C.dt = 0; }
+    }
+    if (!gov.lite || fcount % 2 === 0) { timed("sway", () => sway.draw(now)); blink.draw(dt); }
+    fx.frames++; fcount++;
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- focus / input ----------
+  let crowOn = -1;
+  function setFocus(i) {
+    if (items[focus]) items[focus].classList.remove("focus");      // touch only the two items that change
+    focus = Math.max(0, Math.min(items.length - 1, i));
+    items[focus].classList.add("focus");
+    const moved = focus >= firstApp && scrollTo(focus - firstApp);
+    if (focus >= firstApp) crowOn = focus;
+    // Racing along the row would otherwise start a new flight, beam and re-measure on every press; instead they
+    // all wait until the selection rests (a short pause, longer if the rows scrolled) and then go straight there.
+    clearTimeout(settleT);
+    settleT = setTimeout(() => {
+      if (crowOn >= 0 && live("crow")) crow.perch(...perchPoint(items[crowOn], crowOn === focus));   // top-bar buttons: the crow stays on its app
+      if (crowOn >= 0 && clone && live("clone")) {     // the shadow clone sits on the top edge of the app's tile
+        const t = items[crowOn].querySelector(".tile"), b = t.getBoundingClientRect(), k = crowOn === focus ? 1.14 : 1;
+        clone.perch(b.left + b.width / 2, b.top + b.height / 2 - t.offsetHeight * k / 2 + 2);
+      }
+      if (crowOn >= 0 && live("chidori")) {          // the beam stays on the last app too
+        const b = items[crowOn].querySelector(".tile").getBoundingClientRect();
+        chidori.aim(b.left + b.width / 2, b.top + b.height * .03);
+      }
+      if (live("rain")) rain.measure();
+    }, moved ? 400 : 160);
+  }
+  let settleT = 0;
+  // D-pad: jump to the nearest item in that direction (works for any layout)
+  function move(dx, dy) { const best = neighbour(dx, dy); if (best >= 0) setFocus(best); }
+  function neighbour(dx, dy) {
+    const c = el => { const b = el.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; };
+    const [fx, fy] = c(items[focus]);
+    let best = -1, bestScore = Infinity;
+    items.forEach((el, i) => {
+      if (i === focus) return;
+      const [x, y] = c(el), ax = (x - fx) * dx + (y - fy) * dy;     // distance along the pressed direction
+      if (ax <= 1) return;
+      const off = Math.abs(dx ? y - fy : x - fx);                    // sideways drift, penalised
+      const score = ax + off * 3;
+      if (score < bestScore) { bestScore = score; best = i; }
+    });
+    return best;
+  }
+  let homeReady = false;
+  window.tvBack = () => { if (panel.open) panel.close(); else if (arrange.on) arrange.done(); };   // Android Back: closes Customize; otherwise a launcher has nowhere to go back to
+  addEventListener("keydown", ev => {
+    if (!homeReady) return;
+    if (panel.open) { panel.key(ev.key); ev.preventDefault(); return; }
+    if (arrange.on) {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); return; }   // OK drops it on release (see keyup)
+      arrange.key(ev.key); ev.preventDefault(); return;
+    }
+    switch (ev.key) {
+      case "ArrowLeft":  move(-1, 0); break;
+      case "ArrowRight": move(1, 0); break;
+      case "ArrowUp":    move(0, -1); break;
+      case "ArrowDown":  move(0, 1); break;
+      case "Enter": case " ":                          // a tap opens the app; holding OK ~2 s picks it up to move it
+        if (okUpT) { clearTimeout(okUpT); okUpT = 0; break; }   // some remotes send a held key as quick up/down pairs
+        if (ev.repeat || okT) break;
+        okHeld = false;                                 // a fresh press
+        okT = setTimeout(hold, 2000);
+        break;
+      case "r": case "R": rain.toggle(); break;
+      case "h": case "H": { const hs = $("hint").style; hs.display = hs.display === "block" ? "none" : "block"; break; }
+      default: return;
+    }
+    ev.preventDefault();
+  });
+  let okT = 0, okUpT = 0, okHeld = false;
+  function hold() {                                     // OK held long enough (timed here, or by the app via tvHold)
+    clearTimeout(okT); okT = 0; clearTimeout(okUpT); okUpT = 0;
+    if (arrange.on || panel.open) return;
+    okHeld = true;                                      // the release of this same press must not drop the app
+    if (focus >= firstApp && apps[focus - firstApp].pkg) arrange.start();
+  }
+  window.tvHold = hold;
+  addEventListener("keyup", ev => {
+    if (ev.key !== "Enter" && ev.key !== " ") return;
+    if (okT) {                                          // short press: open the app, unless the key comes straight back down
+      clearTimeout(okUpT);
+      okUpT = setTimeout(() => { okUpT = 0; clearTimeout(okT); okT = 0; if (!arrange.on && !panel.open) activate(); }, 160);
+    }
+    else if (okHeld) okHeld = false;                   // releasing the long press that started move mode
+    else if (arrange.on) arrange.done();               // OK in move mode: put it down here (never opens the app)
+  });
+  $("home").addEventListener("mouseover", ev => {
+    const el = ev.target.closest(".app, .btn"); if (el && homeReady && items.indexOf(el) !== focus) setFocus(items.indexOf(el));
+  });
+  $("home").addEventListener("click", ev => {
+    const el = ev.target.closest(".app, .btn"); if (!el) return;
+    setFocus(items.indexOf(el)); activate();
+  });
+  function activate() {
+    const el = items[focus];
+    if (el.dataset.act === "wifi") return bridge ? bridge.openWifi() : console.log("open Wi-Fi network list");
+    if (el.dataset.act === "settings") return bridge ? bridge.openSettings() : console.log("open settings");
+    if (el.dataset.act === "inputs") return bridge ? bridge.openInputs() : console.log("open the input list");
+    const a = apps[+el.dataset.i];
+    if (a.act === "customize") return openCustomize();
+    if (a.act === "themes") return openThemes();
+    usage[a.pkg] = (usage[a.pkg] || 0) + 1; save("usage", usage);
+    if (bridge) bridge.launch(a.pkg); else console.log("launch", a.pkg);
+  }
+
+  // ---------- Wi-Fi ----------
+  function wifiState() {
+    if (bridge) { try { return JSON.parse(bridge.wifiState()); } catch (e) {} }
+    return { enabled: true, connected: true, ssid: CFG.demoWifiName || "Home WiFi" };
+  }
+  function showWifi() {
+    const s = wifiState();
+    $("wifi").classList.toggle("off", !s.connected);
+    $("wifiState").textContent = s.connected ? (s.ssid || "CONNECTED") : !s.enabled ? "WI-FI OFF" : "NOT CONNECTED";
+    if (homeReady) setTimeout(rain.measure, 50);      // the button changes width with the name
+  }
+  showWifi(); setInterval(showWifi, 5000);
+
+  // ---------- clock: 09:41 PM / WEDNESDAY · 29 OCTOBER 2026 ----------
+  function tick() {
+    const d = new Date(), h = d.getHours(), h12 = h % 12 || 12;
+    $("time").innerHTML = `${String(h12).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}<small>${h < 12 ? "AM" : "PM"}</small>`;
+    $("date").textContent = d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+      .replace(/,? /, " · ").toUpperCase();
+  }
+  tick(); setInterval(tick, 5000);
+
+  // ---------- video background: a looping clip in place of the still wallpaper (the TV's video chip decodes it) ----------
+  // The still (the clip's first frame) shows until the video is playing. When an app opens, the clip is unloaded so
+  // the video decoder is free for the app, and it comes back when Home returns.
+  const bgVideo = (() => {
+    const v = $("bgvid");
+    if (!CFG.video) return { start() {} };
+    // on the TV the app plays the clip natively under the page; the page just turns see-through once it is running
+    const native = bridge && bridge.playBg;
+    window.tvBgPlaying = () => { document.documentElement.classList.add("native-bg"); wall.style.visibility = "hidden"; };
+    function start() {
+      if (native) { bridge.playBg(CFG.video); return; }
+      v.style.display = "block"; v.style.opacity = 0;                // the still wallpaper shows until the clip really plays
+      v.addEventListener("playing", () => { v.style.opacity = 1; wall.style.visibility = "hidden"; }, { once: true });
+      v.src = CFG.video; v.play().catch(() => {});
+    }
+    window.tvPause = () => {
+      wall.style.visibility = ""; document.documentElement.classList.remove("native-bg");   // the app stops its player itself
+      if (!native) { v.style.opacity = 0; v.pause(); v.removeAttribute("src"); v.load(); }
+      if (clone) clone.pause();
+    };
+    window.tvResume = () => { if (!native && !v.getAttribute("src")) start(); if (clone) clone.resume(); };
+    return { start };
+  })();
+
+  // ---------- boot sequence ----------
+  async function boot() {
+    const front = $("front");
+    const loaded = Promise.all([wall, front].map(im => new Promise(r => { im.onload = im.onerror = r; })));
+    wall.src = CFG.wallpaper; if (CFG.front) front.src = CFG.front.src; else front.onload();
+    bgVideo.start();
+    await sleep(CFG.startBlackMs);
+    const L = $("loader"); L.classList.add("show");
+    // spin: ease from slow to fast
+    const t0 = performance.now(), dur = CFG.loaderMs; let a = 0, lt = t0;
+    await new Promise(res => {
+      (function spin(now) {
+        const p = Math.min(1, (now - t0) / dur), dt = (now - lt) / 1000; lt = now;
+        const speed = 90 + 900 * Math.sin(p * Math.PI / 2) ** 2;      // deg/s
+        a += speed * dt;
+        const pulse = 1 + 0.06 * Math.sin(p * 18);
+        $("spinner").setAttribute("transform", `rotate(${a}) scale(${pulse})`);
+        p < 1 ? requestAnimationFrame(spin) : res();
+      })(t0);
+    });
+    await loaded;
+    applyFx();
+    layout(); gravel.start(); leaves.start(); setTimeout(() => setFocus(focus), 1100);
+    $("home").classList.add("show");
+    L.classList.add("out");
+    homeReady = true;
+    requestAnimationFrame(frame);
+  }
+  addEventListener("resize", () => { sizeRows(); if (homeReady) { layout(); if (crowOn >= 0) crow.perch(...perchPoint(items[crowOn], crowOn === focus)); } });
+  boot();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <!-- PLACEHOLDER wallpaper: stylised Itachi-style portrait with BLANK eyes (the launcher paints the Sharingan on top).
+       Replace with your own HD/4K image and update eye positions in config.js. -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%">
+      <stop offset="0" stop-color="#5a0a14"/><stop offset=".45" stop-color="#2a050b"/><stop offset="1" stop-color="#050102"/>
+    </radialGradient>
+    <linearGradient id="skin" x1="0" x2="1"><stop offset="0" stop-color="#c79a7c"/><stop offset=".5" stop-color="#ecc9ad"/><stop offset="1" stop-color="#bd8f72"/></linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d1d26"/><stop offset="1" stop-color="#050507"/></linearGradient>
+    <radialGradient id="moon" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ff3b4a" stop-opacity=".55"/><stop offset="1" stop-color="#ff3b4a" stop-opacity="0"/></radialGradient>
+    <g id="cloud"><path d="M-60 10c-30 0-30-40 0-40 8-30 52-30 62-2 30-8 48 22 22 40 10 20-22 34-40 14-14 14-40 8-44-12z" fill="#e0102c" stroke="#f6f1e4" stroke-width="7"/></g>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <circle cx="960" cy="400" r="520" fill="url(#moon)"/>
+  <!-- cloak -->
+  <path d="M300 1080 L420 760 Q560 640 760 640 L1160 640 Q1360 640 1500 760 L1620 1080Z" fill="#0b0b10"/>
+  <g transform="translate(540 930) scale(1.5)"><use href="#cloud"/></g>
+  <g transform="translate(1390 960) scale(1.5)"><use href="#cloud"/></g>
+  <!-- high collar -->
+  <path d="M700 640 L760 470 L850 700 L960 740 L1070 700 L1160 470 L1220 640 L1160 800 L960 840 L760 800Z" fill="#14141b" stroke="#2a2a35" stroke-width="4"/>
+  <path d="M850 700 L960 740 L1070 700 L960 900Z" fill="#8a1620" opacity=".85"/>
+  <!-- neck -->
+  <path d="M870 620 L870 720 Q960 770 1050 720 L1050 620Z" fill="#b88b6e"/>
+  <!-- back hair -->
+  <path d="M740 300 Q720 520 690 760 Q780 700 800 560Z" fill="url(#hair)"/>
+  <path d="M1180 300 Q1200 520 1230 760 Q1140 700 1120 560Z" fill="url(#hair)"/>
+  <!-- face -->
+  <path d="M770 330 Q770 640 960 700 Q1150 640 1150 330 Q1150 190 960 190 Q770 190 770 330Z" fill="url(#skin)"/>
+  <!-- headband -->
+  <rect x="765" y="268" width="390" height="46" fill="#1a2438" transform="rotate(-1 960 290)"/>
+  <rect x="885" y="262" width="150" height="58" rx="6" fill="#aab4c4" stroke="#6a7384" stroke-width="4"/>
+  <path d="M905 272 L1015 312 M905 312 L1015 272" stroke="#4a5262" stroke-width="5"/>
+  <!-- bangs -->
+  <path d="M760 250 Q800 130 960 120 Q1120 130 1160 250 Q1100 200 1020 215 Q990 270 975 235 Q955 280 930 220 Q820 200 760 250Z" fill="url(#hair)"/>
+  <path d="M800 240 Q790 330 830 450 Q805 330 840 230Z" fill="#0a0a0e"/>
+  <path d="M1120 240 Q1130 330 1090 450 Q1115 330 1080 230Z" fill="#0a0a0e"/>
+  <!-- eyebrows -->
+  <path d="M800 392 Q860 366 915 388" stroke="#0b0b10" stroke-width="11" fill="none" stroke-linecap="round"/>
+  <path d="M1005 388 Q1060 366 1120 392" stroke="#0b0b10" stroke-width="11" fill="none" stroke-linecap="round"/>
+  <!-- eyes: blank sclera (iris is drawn by the launcher) -->
+  <path d="M800 440 Q860 405 918 440 Q860 470 800 440Z" fill="#f2ece4"/>
+  <path d="M1002 440 Q1060 405 1120 440 Q1060 470 1002 440Z" fill="#f2ece4"/>
+  <path d="M796 438 Q860 398 922 438" stroke="#0a0a0e" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M998 438 Q1060 398 1124 438" stroke="#0a0a0e" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <!-- Itachi's tear-trough lines -->
+  <path d="M815 480 Q845 560 890 600" stroke="#7a4a3a" stroke-width="7" fill="none" stroke-linecap="round" opacity=".8"/>
+  <path d="M1105 480 Q1075 560 1030 600" stroke="#7a4a3a" stroke-width="7" fill="none" stroke-linecap="round" opacity=".8"/>
+  <!-- nose + mouth -->
+  <path d="M960 450 Q950 520 940 548 Q960 560 980 548" stroke="#9c6a54" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M920 625 Q960 640 1000 625" stroke="#6e3c34" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <!-- vignette so the app row stays readable -->
+  <rect width="1920" height="1080" fill="url(#bg)" opacity="0"/>
+</svg>
