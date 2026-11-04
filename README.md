@@ -4,6 +4,40 @@ A themed Android TV home screen with animated anime backgrounds. The UI is a web
 
 Themes: **Itachi** (rainy night, crow, lightning flashes), **Sasuke · Chidori** (lightning beam from the hand to the selected app), **Naruto** (shadow clones that stand on the selected app and perform moves).
 
+## Screenshots
+
+Captured at 1080p with the real effects running (the web UI on a PC, with demo apps standing in for a TV's real ones).
+
+### Itachi
+Rain, drifting clouds, lightning flashes and a crow that flies to the selected app.
+
+| | |
+|---|---|
+| ![Itachi](docs/screenshots/itachi.jpg) | ![Itachi, crow on another app](docs/screenshots/itachi-2.jpg) |
+
+### Sasuke · Chidori
+A single lightning beam runs from the Chidori in his hand to the selected app and slides along as you move.
+
+| | |
+|---|---|
+| ![Sasuke](docs/screenshots/sasuke.jpg) | ![Sasuke, beam on another app](docs/screenshots/sasuke-2.jpg) |
+
+### Naruto
+A shadow clone is summoned on the selected app in a puff of smoke, stands breathing, then performs a move (ten different clones).
+
+| | |
+|---|---|
+| ![Naruto](docs/screenshots/naruto.jpg) | ![Naruto, clone doing its move](docs/screenshots/naruto-move.jpg) |
+
+### Switching themes, customizing, moving apps
+
+| Themes | Customize | Move mode |
+|---|---|---|
+| ![Themes](docs/screenshots/themes-panel.jpg) | ![Customize](docs/screenshots/customize-panel.jpg) | ![Moving an app](docs/screenshots/move-mode.jpg) |
+
+### App icons
+Every app gets a matching line icon or wordmark.
+
 ![icons](docs/icon-set.png)
 
 ## Install (TV or any Android 8+ device)
